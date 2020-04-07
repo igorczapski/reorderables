@@ -37,6 +37,7 @@ class ReorderableWrap extends StatefulWidget {
     Key key,
     this.header,
     this.footer,
+    this.footers,
     this.controller,
     @required this.children,
     @required this.onReorder,
@@ -57,6 +58,7 @@ class ReorderableWrap extends StatefulWidget {
     this.maxMainAxisCount,
     this.onNoReorder,
     this.onReorderStarted,
+    this.customChildWhenDragging
   })  : assert(direction != null),
         assert(onReorder != null),
         assert(children != null),
@@ -66,11 +68,18 @@ class ReorderableWrap extends StatefulWidget {
 //        ),
         super(key: key);
 
+  ///Custom replacement for ChildWhenDragging on LongPressDraggable
+  final Widget customChildWhenDragging;
+
   /// A non-reorderable header widget to show before the list.
   ///
   /// If null, no header will appear before the list.
   final Widget header;
   final Widget footer;
+  ///Because of no time I added footers as separate field
+  ///instead of changing footer to list. You can add both footer and
+  ///footers, and they will appear in this exact order.
+  final List<Widget> footers;
 
   /// A custom scroll [controller].
   /// To control the initial scroll offset of the scroll view, provide a
@@ -264,6 +273,7 @@ class _ReorderableWrapState extends State<ReorderableWrap> {
         return _ReorderableWrapContent(
           header: widget.header,
           footer: widget.footer,
+          footers: widget.footers,
           children: widget.children,
           direction: widget.direction,
           scrollDirection: widget.scrollDirection,
@@ -284,6 +294,7 @@ class _ReorderableWrapState extends State<ReorderableWrap> {
           minMainAxisCount: widget.minMainAxisCount,
           maxMainAxisCount: widget.maxMainAxisCount,
           controller: widget.controller,
+          customChildWhenDragging: widget.customChildWhenDragging,
         );
       },
     );
@@ -305,6 +316,7 @@ class _ReorderableWrapContent extends StatefulWidget {
   const _ReorderableWrapContent({
     this.header,
     this.footer,
+    this.footers,
     this.controller,
     @required this.children,
     @required this.direction,
@@ -325,10 +337,11 @@ class _ReorderableWrapContent extends StatefulWidget {
     @required this.verticalDirection,
     @required this.minMainAxisCount,
     @required this.maxMainAxisCount,
-  });
+    this.customChildWhenDragging});
 
   final Widget header;
   final Widget footer;
+  final List<Widget> footers;
   final ScrollController controller;
   final List<Widget> children;
   final Axis direction;
@@ -350,6 +363,7 @@ class _ReorderableWrapContent extends StatefulWidget {
   final VerticalDirection verticalDirection;
   final int minMainAxisCount;
   final int maxMainAxisCount;
+  final Widget customChildWhenDragging;
 
   @override
   _ReorderableWrapContentState createState() => _ReorderableWrapContentState();
@@ -461,7 +475,7 @@ class _ReorderableWrapContentState extends State<_ReorderableWrapContent>
 
   @override
   void didChangeDependencies() {
-    _scrollController = 
+    _scrollController =
         widget.controller ?? (PrimaryScrollController.of(context) ?? ScrollController());
     super.didChangeDependencies();
   }
@@ -799,10 +813,12 @@ class _ReorderableWrapContentState extends State<_ReorderableWrapContent>
                 //toWrapWithSemantics,//_dragging == toWrap.key ? const SizedBox() : toWrapWithSemantics,
                 childWhenDragging: IgnorePointer(
                     ignoring: true,
-                    child: Opacity(
-                        opacity: 0.2,
-                        //child: toWrap,//Container(width: 0, height: 0, child: toWrap)
-                        child: _makeAppearingWidget(toWrap))),
+                    child: widget.customChildWhenDragging != null
+                        ? _makeAppearingWidget(widget.customChildWhenDragging)
+                        : Opacity(
+                            opacity: 0.2,
+                            //child: toWrap,//Container(width: 0, height: 0, child: toWrap)
+                            child: _makeAppearingWidget(toWrap))),
                 //ConstrainedBox(constraints: contentConstraints),//SizedBox(),
                 dragAnchor: DragAnchor.child,
                 onDragStarted: onDragStarted,
@@ -825,10 +841,12 @@ class _ReorderableWrapContentState extends State<_ReorderableWrapContent>
                     behavior: HitTestBehavior.opaque),
                 childWhenDragging: IgnorePointer(
                   ignoring: true,
-                  child: Opacity(
-                    opacity: 0.2,
-                    child: _makeAppearingWidget(toWrap),
-                  ),
+                  child: widget.customChildWhenDragging != null
+                      ? _makeAppearingWidget(widget.customChildWhenDragging)
+                      : Opacity(
+                        opacity: 0.2,
+                        //child: toWrap,//Container(width: 0, height: 0, child: toWrap)
+                        child: _makeAppearingWidget(toWrap))
                 ),
                 dragAnchor: DragAnchor.child,
                 onDragStarted: onDragStarted,
@@ -1176,6 +1194,9 @@ class _ReorderableWrapContentState extends State<_ReorderableWrapContent>
     }
     if (widget.footer != null) {
       wrappedChildren.add(widget.footer);
+    }
+    if (widget.footers != null) {
+      wrappedChildren.addAll(widget.footers);
     }
 
     return SingleChildScrollView(
